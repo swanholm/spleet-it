@@ -104,7 +104,7 @@ def apply_unet(
             Output tensor.
     """
     logging.info(f"Apply unet for {output_name}")
-    conv_n_filters = params.get("conv_n_filters", [16, 32, 64, 128, 256, 512])
+    conv_n_filters = params.get("conv_n_filters", [16, 32, 64, 128, 256, 512, 1024, 2048])
     conv_activation_layer = _get_conv_activation_layer(params)
     deconv_activation_layer = _get_deconv_activation_layer(params)
     kernel_initializer = he_uniform(seed=50)
@@ -134,8 +134,15 @@ def apply_unet(
     # Sixth layer
     conv6 = conv2d_factory(conv_n_filters[5], (5, 5))(rel5)
     batch6 = BatchNormalization(axis=-1)(conv6)
-    _ = conv_activation_layer(batch6)
-    #
+    rel6 = conv_activation_layer(batch6)
+    # Seventh layer
+    conv7 = conv2d_factory(conv_n_filters[6], (5, 5))(rel6)
+    batch7 = BatchNormalization(axis=-1)(conv7)
+    rel7 = conv_activation_layer(batch7)
+    # Eighth layer
+    conv8 = conv2d_factory(conv_n_filters[7], (5, 5))(rel7)
+    batch8 = BatchNormalization(axis=-1)(conv8)
+    _ = conv_activation_layer(batch8)
     #
     conv2d_transpose_factory = partial(
         Conv2DTranspose,
@@ -144,48 +151,59 @@ def apply_unet(
         kernel_initializer=kernel_initializer,
     )
     #
-    up1 = conv2d_transpose_factory(conv_n_filters[4], (5, 5))((conv6))
+    up1 = conv2d_transpose_factory(conv_n_filters[6], (5, 5))((conv8))
     up1 = deconv_activation_layer(up1)
-    batch7 = BatchNormalization(axis=-1)(up1)
-    drop1 = Dropout(0.5)(batch7)
-    merge1 = Concatenate(axis=-1)([conv5, drop1])
+    batch9 = BatchNormalization(axis=-1)(up1)
+    drop1 = Dropout(0.5)(batch9)
+    merge1 = Concatenate(axis=-1)([conv7, drop1])
     #
-    up2 = conv2d_transpose_factory(conv_n_filters[3], (5, 5))((merge1))
+    up2 = conv2d_transpose_factory(conv_n_filters[5], (5, 5))((merge1))
     up2 = deconv_activation_layer(up2)
-    batch8 = BatchNormalization(axis=-1)(up2)
-    drop2 = Dropout(0.5)(batch8)
-    merge2 = Concatenate(axis=-1)([conv4, drop2])
+    batch10 = BatchNormalization(axis=-1)(up2)
+    drop2 = Dropout(0.5)(batch10)
+    merge2 = Concatenate(axis=-1)([conv6, drop2])
     #
-    up3 = conv2d_transpose_factory(conv_n_filters[2], (5, 5))((merge2))
+    up3 = conv2d_transpose_factory(conv_n_filters[4], (5, 5))((merge2))
     up3 = deconv_activation_layer(up3)
-    batch9 = BatchNormalization(axis=-1)(up3)
-    drop3 = Dropout(0.5)(batch9)
-    merge3 = Concatenate(axis=-1)([conv3, drop3])
+    batch11 = BatchNormalization(axis=-1)(up3)
+    drop3 = Dropout(0.5)(batch11)
+    merge3 = Concatenate(axis=-1)([conv5, drop3])
     #
-    up4 = conv2d_transpose_factory(conv_n_filters[1], (5, 5))((merge3))
+    up4 = conv2d_transpose_factory(conv_n_filters[3], (5, 5))((merge3))
     up4 = deconv_activation_layer(up4)
-    batch10 = BatchNormalization(axis=-1)(up4)
-    merge4 = Concatenate(axis=-1)([conv2, batch10])
+    batch12 = BatchNormalization(axis=-1)(up4)
+    drop4 = Dropout(0.5)(batch12)
+    merge4 = Concatenate(axis=-1)([conv4, drop4])
     #
-    up5 = conv2d_transpose_factory(conv_n_filters[0], (5, 5))((merge4))
+    up5 = conv2d_transpose_factory(conv_n_filters[2], (5, 5))((merge4))
     up5 = deconv_activation_layer(up5)
-    batch11 = BatchNormalization(axis=-1)(up5)
-    merge5 = Concatenate(axis=-1)([conv1, batch11])
+    batch13 = BatchNormalization(axis=-1)(up5)
+    merge5 = Concatenate(axis=-1)([conv3, batch13])
     #
-    up6 = conv2d_transpose_factory(1, (5, 5), strides=(2, 2))((merge5))
+    up6 = conv2d_transpose_factory(conv_n_filters[1], (5, 5))((merge5))
     up6 = deconv_activation_layer(up6)
-    batch12 = BatchNormalization(axis=-1)(up6)
+    batch14 = BatchNormalization(axis=-1)(up6)
+    merge6 = Concatenate(axis=-1)([conv2, batch14])
+    #
+    up7 = conv2d_transpose_factory(conv_n_filters[0], (5, 5))((merge6))
+    up7 = deconv_activation_layer(up7)
+    batch15 = BatchNormalization(axis=-1)(up7)
+    merge7 = Concatenate(axis=-1)([conv1, batch15])
+    #
+    up8 = conv2d_transpose_factory(1, (5, 5), strides=(2, 2))((merge7))
+    up8 = deconv_activation_layer(up8)
+    batch16 = BatchNormalization(axis=-1)(up8)
     # Last layer to ensure initial shape reconstruction.
     if not output_mask_logit:
-        up7 = Conv2D(
+        up9 = Conv2D(
             2,
             (4, 4),
             dilation_rate=(2, 2),
             activation="sigmoid",
             padding="same",
             kernel_initializer=kernel_initializer,
-        )((batch12))
-        output = Multiply(name=output_name)([up7, input_tensor])
+        )((batch16))
+        output = Multiply(name=output_name)([up9, input_tensor])
         return output
     return Conv2D(
         2,
@@ -193,7 +211,7 @@ def apply_unet(
         dilation_rate=(2, 2),
         padding="same",
         kernel_initializer=kernel_initializer,
-    )((batch12))
+    )((batch16))
 
 
 def unet(
