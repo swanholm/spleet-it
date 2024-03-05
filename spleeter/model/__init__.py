@@ -156,6 +156,8 @@ class EstimatorSpecBuilder(object):
         self._F = params["F"]
         self._frame_length = params["frame_length"]
         self._frame_step = params["frame_step"]
+        OVERLAP_COMPENSATION_FACTOR_DEFAULT = (4096 / 1024)
+        self._overlap_compensation_factor = OVERLAP_COMPENSATION_FACTOR_DEFAULT / (self._frame_length / self._frame_step)
 
     def _build_model_outputs(self):
         """
@@ -343,6 +345,7 @@ class EstimatorSpecBuilder(object):
                 ),
             )
             * self.WINDOW_COMPENSATION_FACTOR
+            * self._overlap_compensation_factor # ???!!!
         )
         reshaped = tf.transpose(inversed)
         if time_crop is None:
