@@ -33,6 +33,7 @@ from .model import EstimatorSpecBuilder, InputProviderFactory, model_fn
 from .model.provider import ModelProvider
 from .types import AudioDescriptor
 from .utils.configuration import load_configuration
+from .utils.logging import configure_logger, logger
 
 # pylint: enable=import-error
 
@@ -79,6 +80,18 @@ def create_estimator(params: Dict, MWF: bool) -> tf.Tensor:
             A tensorflow estimator
     """
     # Load model.
+    import os
+    # Since the MODEL_PATH environment variable is used by the model provider to determine the model path, in cases where the model path is different from the default setting ("pretrained_models"), we need to set it here. Otherwise the model provider will proceed to download a pretrained model from GitHub.
+    # Check that MODEL_PATH is not already set in the environment. In some cases it could already be set - if using Docker for example - and then we don't want to interfere with that setting.
+    if "MODEL_PATH" not in os.environ:
+        # get 'model_dir' from the config (config.json), and use it, if present
+        config_model_dir = params.get("model_dir")
+        if config_model_dir:
+            # Convert to an absolute path and set it as MODEL_PATH in the environment
+            os.environ["MODEL_PATH"] = os.path.abspath(config_model_dir)
+
+    absolute_path = os.path.abspath(os.environ["MODEL_PATH"])
+    logger.info("Using path: %s for model location.", absolute_path)
     provider: ModelProvider = ModelProvider.default()
     params["model_dir"] = provider.get(params["model_dir"])
     params["MWF"] = MWF
