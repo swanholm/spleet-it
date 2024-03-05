@@ -64,7 +64,7 @@ def apply_blstm(
     """
     if params is None:
         params = {}
-    units: int = params.get("lstm_units", 250)
+    units: int = params.get("lstm_units", 1000)
     kernel_initializer = he_uniform(seed=50)
     flatten_input = TimeDistributed(Flatten())((input_tensor))
 
