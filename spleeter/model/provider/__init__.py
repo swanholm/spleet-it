@@ -74,7 +74,8 @@ class ModelProvider(ABC):
         """
         # Expend model directory if needed.
         if not isabs(model_directory):
-            model_directory = join(self.DEFAULT_MODEL_PATH, model_directory)
+            if not exists(model_directory):
+                model_directory = join(self.DEFAULT_MODEL_PATH, model_directory)
         # Download it if not exists.
         model_probe: str = join(model_directory, self.MODEL_PROBE_PATH)
         if not exists(model_probe):
